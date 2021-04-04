@@ -39,3 +39,13 @@ module.exports.validateAuth = (req, _res, next) => {
 module.exports.validateUpdateSub = (req, _res, next) => {
   return validate(schemaValidateUpdateSub, req.body, next)
 }
+
+module.exports.validateUploadAvatar = (req, _res, next) => {
+  if (!req.file) {
+    return next({
+      status: 400,
+      message: 'Bad request',
+    })
+  }
+  next()
+}

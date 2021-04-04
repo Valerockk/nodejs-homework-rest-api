@@ -1,8 +1,9 @@
 const { Schema, model } = require('mongoose')
 const bcrypt = require('bcryptjs')
+const gravatar = require('gravatar')
 const SALT_WORK_FACTOR = 8
 
-const userShema = new Schema(
+const userSchema = new Schema(
   {
     email: {
       type: String,
@@ -22,6 +23,12 @@ const userShema = new Schema(
       enum: ['free', 'pro', 'premium'],
       default: 'free',
     },
+    avatarURL: {
+      type: String,
+      default: function () {
+        return gravatar.url(this.email, { s: '250' }, true)
+      },
+    },
     token: {
       type: String,
       default: null,
@@ -30,7 +37,7 @@ const userShema = new Schema(
   { versionKey: false }
 )
 
-userShema.pre('save', async function name(next) {
+userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) {
     return next()
   }
@@ -39,10 +46,10 @@ userShema.pre('save', async function name(next) {
   next()
 })
 
-userShema.methods.validPassword = async function (password) {
+userSchema.methods.validPassword = async function (password) {
   return await bcrypt.compare(password, this.password)
 }
 
-const User = model('user', userShema)
+const User = model('user', userSchema)
 
 module.exports = User

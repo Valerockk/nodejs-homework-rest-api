@@ -1,16 +1,21 @@
-const jwt = require('passport-jwt')
+const jwt = require('jsonwebtoken')
 const Users = require('../model/users')
+const fs = require('fs/promises')
+const path = require('path')
+const Jimp = require('jimp')
+const createFolderIsExist = require('../service/create-dir')
 require('dotenv').config()
-const SECRET_KEY = process.env.SECRET_KEY
+
+const SECRET_KEY = process.env.JWT_SECRET
 
 const register = async (req, res, next) => {
   try {
-    const { email } = req.email
+    const { email } = req.body
     const user = await Users.findByEmail(email)
     if (user) {
       return next({
         status: 409,
-        message: 'Email is use',
+        message: 'Email in use',
       })
     }
     const newUser = await Users.create(req.body)
@@ -21,6 +26,7 @@ const register = async (req, res, next) => {
         user: {
           email: newUser.email,
           subscription: newUser.subscription,
+          avatarURL: newUser.avatarURL,
         },
       },
     })
@@ -39,11 +45,11 @@ const login = async (req, res, next) => {
   try {
     const { email, password } = req.body
     const user = await Users.findByEmail(email)
-    const isValidPassword = await user.validPassword(password)
+    const isValidPassword = await user?.validPassword(password)
     if (!user || !isValidPassword) {
       return next({
         status: 401,
-        message: 'Email is password is wrong',
+        message: 'Email or password is wrong',
       })
     }
     const id = user._id
@@ -58,6 +64,7 @@ const login = async (req, res, next) => {
         user: {
           email: user.email,
           subscription: user.subscription,
+          avatarURL: user.avatarURL,
         },
       },
     })
@@ -72,15 +79,15 @@ const login = async (req, res, next) => {
   }
 }
 
-const logout = async (req, res, next) => {
-  const id = req.user.id
+const logout = async (req, res, _next) => {
+  const id = String(req.user._id)
   await Users.updateToken(id, null)
-  return res.status(204).json({})
+  return res.status(402).json({})
 }
 
 const currentUser = async (req, res, next) => {
-  const id = req.user.id
   try {
+    const id = String(req.user._id)
     const user = await Users.findById(id)
     return res.status(200).json({
       status: 'success',
@@ -89,6 +96,7 @@ const currentUser = async (req, res, next) => {
         user: {
           email: user.email,
           subscription: user.subscription,
+          avatarURL: user.avatarURL,
         },
       },
     })
@@ -97,9 +105,9 @@ const currentUser = async (req, res, next) => {
   }
 }
 
-const updateSubUser = async (req, res, next) => {
-  const id = req.user.id
+const updateSub = async (req, res, next) => {
   try {
+    const id = String(req.user._id)
     await Users.updateSubUser(id, req.body.subscription)
     const user = await Users.findById(id)
     return res.json({
@@ -109,6 +117,7 @@ const updateSubUser = async (req, res, next) => {
         user: {
           email: user.email,
           subscription: user.subscription,
+          avatarURL: user.avatarURL,
         },
       },
     })
@@ -116,11 +125,49 @@ const updateSubUser = async (req, res, next) => {
     if (e.name === 'CastError') {
       return next({
         status: 404,
-        message: 'Not found',
+        message: 'Not Found',
       })
     }
     next(e)
   }
 }
 
-module.exports = { register, login, logout, currentUser, updateSubUser }
+const saveAvatarToStatic = async (req) => {
+  const id = String(req.user._id)
+  const AVATAR_URL = process.env.AVATAR_URL
+  const pathFile = req.file.path
+  const newNameAvatar = `${Date.now()}-${req.file.originalname}`
+  const img = await Jimp.read(pathFile)
+  await img
+    .autocrop()
+    .cover(250, 250, Jimp.HORIZONTAL_ALIGN_CENTER | Jimp.VERTICAL_ALIGN_MIDDLE)
+    .writeAsync(pathFile)
+  await createFolderIsExist(path.join(AVATAR_URL, id))
+  await fs.rename(pathFile, path.join(AVATAR_URL, id, newNameAvatar))
+  const avatarUrl = path.join(id, newNameAvatar)
+  try {
+    await fs.unlink(path.join(process.cwd(), AVATAR_URL, req.user.avatarURL))
+  } catch (e) {
+    console.log(e.message)
+  }
+  return avatarUrl
+}
+
+const avatars = async (req, res, next) => {
+  try {
+    const id = String(req.user._id)
+    const avatarUrl = await saveAvatarToStatic(req)
+    await Users.updateAvatar(id, avatarUrl)
+    return res.json({
+      status: 'success',
+      code: 200,
+      data: {
+        avatarUrl,
+      },
+    })
+  } catch (e) {
+    next(e)
+  }
+}
+
+module.exports = { register, login, logout, currentUser, updateSub, avatars }

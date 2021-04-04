@@ -1,30 +1,35 @@
-const mongoose = require('mongoose')
-require('dotenv').config()
-const uriDb = process.env.URI_DB
+const User = require('./schemas/user')
 
-const db = mongoose.connect(uriDb, {
-  useNewUrlParser: true,
-  useCreateIndex: true,
-  useUnifiedTopology: true,
-  useFindAndModify: false,
-})
+const findByEmail = async (email) => {
+  return await User.findOne({ email })
+}
 
-mongoose.connection.on('connected', () => {
-  console.log('Database connection successful')
-})
+const findById = async (id) => {
+  return await User.findOne({ _id: id })
+}
 
-mongoose.connection.on('error', (err) => {
-  console.log(`Database connection error: ${err.message}`)
-})
+const create = async ({ email, password }) => {
+  const user = new User({ email, password })
+  return await user.save()
+}
 
-mongoose.connection.on('disconnected', () => {
-  console.log('Database disconnected')
-})
+const updateToken = async (id, token) => {
+  return await User.updateOne({ _id: id }, { token })
+}
 
-process.on('SIGINT', async () => {
-  await mongoose.connection.close()
-  console.log('Database connection closed and app termination')
-  process.exit(1)
-})
+const updateSubUser = async (id, subscription) => {
+  return await User.updateOne({ _id: id }, { subscription })
+}
 
-module.exports = db
+const updateAvatar = async (id, avatarURL) => {
+  return await User.updateOne({ _id: id }, { avatarURL })
+}
+
+module.exports = {
+  findByEmail,
+  findById,
+  create,
+  updateToken,
+  updateSubUser,
+  updateAvatar,
+}

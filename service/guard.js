@@ -3,18 +3,11 @@ require('../config/passport')
 
 const guard = (req, res, next) => {
   passport.authenticate('jwt', { session: false }, (err, user) => {
-    const header = req.get('Authorization')
-    if (!header) {
+    const token = req.get('Authorization')?.split(' ')[1]
+    if (!user || err || token !== user.token) {
       return next({
         status: 401,
-        message: 'No authorized',
-      })
-    }
-    const [token] = header.split(' ')
-    if (!token || err || token !== user.token) {
-      return next({
-        status: 401,
-        message: 'No authorized',
+        message: 'Not authorized',
       })
     }
     req.user = user

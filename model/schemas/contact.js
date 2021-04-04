@@ -13,15 +13,17 @@ const contactSchema = new Schema(
       type: String,
       required: [true, 'Email is required'],
       unique: true,
+      validate: {
+        validator: (v) => /\S+@\S+\.\S+/.test(v),
+        message: (props) => `${props.value} is not a valid email!`,
+      },
     },
     phone: {
       type: String,
       required: [true, 'Phone is required'],
       unique: true,
       validate: {
-        validator: function (v) {
-          return /\(\d{3}\)\s\d{3}-\d{4}/.test(v)
-        },
+        validator: (v) => /\(\d{3}\)\s\d{3}-\d{4}/.test(v),
         message: (props) => `${props.value} is not a valid phone number!`,
       },
     },
