@@ -39,7 +39,6 @@ const addContact = async (body) => {
   const data = await Contact.create(body)
   return data
 }
-
 const updateContact = async (contactId, body, userId) => {
   const data = await Contact.findByIdAndUpdate(
     { _id: contactId, owner: userId },
